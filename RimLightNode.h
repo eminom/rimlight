@@ -25,8 +25,13 @@ private:
 	bool initWithFileName(const char *pszPathName);
 
 private:
-	SpriteRimLight *_light;
+	static cocos2d::Node* createLight(const char *pathName, float r, float g, float b);
+
+private:
+	float _fambs[3];
+	cocos2d::Node *_light;
 	cocos2d::Sprite *_origin;
+	std::string _spritePath;
 };
 
 #endif
