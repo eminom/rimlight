@@ -26,6 +26,9 @@ protected:
     void onDraw(const kmMat4 &transform, bool transformUpdated);
 
 private:
+	static cocos2d::GLProgram* getSharedProgram();
+
+private:
     int       _blurRadius;
     cocos2d::Point     _pixelSize;
 

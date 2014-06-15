@@ -45,36 +45,37 @@ bool SpriteRimLight::initWithTexture(Texture2D* texture, const Rect& rect)
     return false;
 }
 
+cocos2d::GLProgram* SpriteRimLight::getSharedProgram()
+{
+	static GLProgram *program = nullptr;
+	if( ! program )
+	{
+		GLchar * fragSource = (GLchar*) String::createWithContentsOfFile(
+									FileUtils::getInstance()->fullPathForFilename("Shaders/example_Blur.fsh").c_str())->getCString();  
+		program = new GLProgram();
+		program->initWithByteArrays(ccPositionTextureColor_vert, fragSource);
+
+		CHECK_GL_ERROR_DEBUG();
+		program->bindAttribLocation(GLProgram::ATTRIBUTE_NAME_POSITION, GLProgram::VERTEX_ATTRIB_POSITION);
+		program->bindAttribLocation(GLProgram::ATTRIBUTE_NAME_COLOR, GLProgram::VERTEX_ATTRIB_COLOR);
+		program->bindAttribLocation(GLProgram::ATTRIBUTE_NAME_TEX_COORD, GLProgram::VERTEX_ATTRIB_TEX_COORDS);
+
+		CHECK_GL_ERROR_DEBUG();
+		program->link();
+		CHECK_GL_ERROR_DEBUG();
+		program->updateUniforms();
+		CHECK_GL_ERROR_DEBUG();
+	}
+	return program;
+}
+
 void SpriteRimLight::initProgram()
 {
-    GLchar * fragSource = (GLchar*) String::createWithContentsOfFile(
-                                FileUtils::getInstance()->fullPathForFilename("Shaders/example_Blur.fsh").c_str())->getCString();  
-    auto program = new GLProgram();
-    program->initWithByteArrays(ccPositionTextureColor_vert, fragSource);
-    setShaderProgram(program);
-    program->release();
-    
-    CHECK_GL_ERROR_DEBUG();
-    
-    program->bindAttribLocation(GLProgram::ATTRIBUTE_NAME_POSITION, GLProgram::VERTEX_ATTRIB_POSITION);
-    program->bindAttribLocation(GLProgram::ATTRIBUTE_NAME_COLOR, GLProgram::VERTEX_ATTRIB_COLOR);
-    program->bindAttribLocation(GLProgram::ATTRIBUTE_NAME_TEX_COORD, GLProgram::VERTEX_ATTRIB_TEX_COORDS);
-
-    CHECK_GL_ERROR_DEBUG();
-    
-    program->link();
-    
-    CHECK_GL_ERROR_DEBUG();
-    
-    program->updateUniforms();
-    
-    CHECK_GL_ERROR_DEBUG();
-    
+    auto program = SpriteRimLight::getSharedProgram();
+	setShaderProgram(program);
     pixelSizeLocation = program->getUniformLocation("onePixelSize");
     coefficientLocation = program->getUniformLocation("gaussianCoefficient");
 	rimLightLocation = program->getUniformLocation("rimLight");
-
-    CHECK_GL_ERROR_DEBUG();
 }
 
 void SpriteRimLight::draw(Renderer *renderer, const kmMat4 &transform, bool transformUpdated)
