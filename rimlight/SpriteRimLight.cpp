@@ -3,6 +3,88 @@
 #include "SpriteRimLight.h"
 using namespace cocos2d;
 
+
+const char *_fragSource =
+
+""
+"// April. 27th. 2o14			\n"
+"// Specified by eminem			\n"
+
+"#ifdef GL_ES					\n"
+"precision mediump float;		\n"
+"#endif							\n"
+
+"varying vec4 v_fragmentColor;		\n"
+"varying vec2 v_texCoord;			\n"
+"uniform sampler2D CC_Texture0;		\n"
+
+"uniform vec4 gaussianCoefficient;	\n"
+"uniform vec2 onePixelSize;			\n"
+"uniform vec4 rimLight;				\n"
+
+"#define TranslatedColor vec4(rimLight.r * step(0, thisV.a), rimLight.g * step(0, thisV.a), rimLight.b * step(0,thisV.a), thisV.a)		\n"
+"//#define TranslatedColor vec4(0, 1 * step(0, thisV.a), 0, thisV.a)																	\n"
+
+"void main() {                                             \n"
+"	if(gaussianCoefficient.x > 0.0) {                      \n"
+"	    vec4 sum = vec4(0.0);								\n"
+"	    vec2 offset;										\n"
+"	    float weight;										\n"
+"	    float squareX;										\n"
+"	    vec4 thisV;											\n"
+
+"	    for(float dx = 0.0; dx <= gaussianCoefficient.x; dx += 1.0) {       \n"
+"	        squareX = dx * dx;												\n"
+"	        weight = gaussianCoefficient.z * exp(squareX * gaussianCoefficient.y);	\n"
+	        
+"	        offset.x = -dx * onePixelSize.x;									\n"
+"	        offset.y = 0.0;													\n"
+
+"	        thisV = texture2D(CC_Texture0, v_texCoord + offset);			\n"
+"	        sum += TranslatedColor * weight;								\n"
+	        
+"	        offset.x = dx * onePixelSize.x;									\n"
+
+"	        thisV = texture2D(CC_Texture0, v_texCoord + offset);			\n"
+"	        sum += TranslatedColor * weight;								\n"
+	        
+"	        for(float dy = 1.0; dy <= gaussianCoefficient.x; dy += 1.0) {   \n"
+"	            weight = gaussianCoefficient.z * exp((squareX + dy * dy) * gaussianCoefficient.y);	\n"
+	            
+"	            offset.x = -dx * onePixelSize.x;								\n"
+"	            offset.y = -dy * onePixelSize.y;								\n"
+
+"	            thisV = texture2D(CC_Texture0, v_texCoord + offset);		\n"
+"	            sum += TranslatedColor * weight;							\n"
+
+"	            offset.y = dy * onePixelSize.y;								\n"
+
+"	            thisV = texture2D(CC_Texture0, v_texCoord + offset);		\n"
+"	            sum += TranslatedColor * weight;							\n"
+	            
+"	            offset.x = dx * onePixelSize.x;								\n"
+
+"	            thisV = texture2D(CC_Texture0, v_texCoord + offset);		\n"
+"	            sum += TranslatedColor * weight;							\n"
+	            
+"	            offset.y = -dy * onePixelSize.y;								\n"
+
+"	            thisV = texture2D(CC_Texture0, v_texCoord + offset);		\n"
+"	            sum += TranslatedColor * weight;							\n"
+"	        }																\n"
+"	    }																	\n"
+
+"	    thisV = texture2D(CC_Texture0, v_texCoord);							\n"
+"	    sum -= TranslatedColor * gaussianCoefficient.z;						\n"
+"	    sum /= gaussianCoefficient.w;										\n"
+"	    gl_FragColor = sum * v_fragmentColor;								\n"
+"	}																		\n"
+"	else {        \n"
+"	    gl_FragColor = texture2D(CC_Texture0, v_texCoord) * v_fragmentColor;\n"
+"	}																		\n"
+"}																			\n"
+;
+
 #define _DefaultBlurSize	25
 
 SpriteRimLight::SpriteRimLight()
@@ -45,42 +127,21 @@ bool SpriteRimLight::initWithTexture(Texture2D* texture, const Rect& rect)
     return false;
 }
 
-cocos2d::GLProgram* SpriteRimLight::getSharedProgram()
-{
-	static GLProgram *program = nullptr;
-	if( ! program )
-	{
-		GLchar * fragSource = (GLchar*) String::createWithContentsOfFile(
-									FileUtils::getInstance()->fullPathForFilename("Shaders/example_Blur.fsh").c_str())->getCString();  
-		program = new GLProgram();
-		program->initWithByteArrays(ccPositionTextureColor_vert, fragSource);
-
-		CHECK_GL_ERROR_DEBUG();
-		program->bindAttribLocation(GLProgram::ATTRIBUTE_NAME_POSITION, GLProgram::VERTEX_ATTRIB_POSITION);
-		program->bindAttribLocation(GLProgram::ATTRIBUTE_NAME_COLOR, GLProgram::VERTEX_ATTRIB_COLOR);
-		program->bindAttribLocation(GLProgram::ATTRIBUTE_NAME_TEX_COORD, GLProgram::VERTEX_ATTRIB_TEX_COORDS);
-
-		CHECK_GL_ERROR_DEBUG();
-		program->link();
-		CHECK_GL_ERROR_DEBUG();
-		program->updateUniforms();
-		CHECK_GL_ERROR_DEBUG();
-	}
-	return program;
-}
-
 void SpriteRimLight::initProgram()
 {
-    auto program = SpriteRimLight::getSharedProgram();
+	auto program = getGaussShader();    
 	setShaderProgram(program);
+    CHECK_GL_ERROR_DEBUG();
     pixelSizeLocation = program->getUniformLocation("onePixelSize");
     coefficientLocation = program->getUniformLocation("gaussianCoefficient");
 	rimLightLocation = program->getUniformLocation("rimLight");
+
+    CHECK_GL_ERROR_DEBUG();
 }
 
 void SpriteRimLight::draw(Renderer *renderer, const kmMat4 &transform, bool transformUpdated)
 {
-    _customCommand.init(_globalZOrder);
+	_customCommand.init(_globalZOrder);
     _customCommand.func = CC_CALLBACK_0(SpriteRimLight::onDraw, this, transform, transformUpdated);
     renderer->addCommand(&_customCommand);
 }
@@ -97,29 +158,16 @@ void SpriteRimLight::onDraw(const kmMat4 &transform, bool transformUpdated)
     program->setUniformLocationWith2f(pixelSizeLocation, _pixelSize.x, _pixelSize.y);
     program->setUniformLocationWith4f(coefficientLocation, _samplingRadius, _scale,_cons,_weightSum);
 	program->setUniformLocationWith4f(rimLightLocation, _rimRed, _rimGreen, _rimBlue, 0);
-    
     GL::bindTexture2D( getTexture()->getName());
-    
-    //
-    // Attributes
-    //
     #define kQuadSize sizeof(_quad.bl)
     size_t offset = (size_t)&_quad;
-    
-    // vertex
     int diff = offsetof( V3F_C4B_T2F, vertices);
     glVertexAttribPointer(GLProgram::VERTEX_ATTRIB_POSITION, 3, GL_FLOAT, GL_FALSE, kQuadSize, (void*) (offset + diff));
-    
-    // texCoods
     diff = offsetof( V3F_C4B_T2F, texCoords);
     glVertexAttribPointer(GLProgram::VERTEX_ATTRIB_TEX_COORDS, 2, GL_FLOAT, GL_FALSE, kQuadSize, (void*)(offset + diff));
-    
-    // color
     diff = offsetof( V3F_C4B_T2F, colors);
     glVertexAttribPointer(GLProgram::VERTEX_ATTRIB_COLOR, 4, GL_UNSIGNED_BYTE, GL_TRUE, kQuadSize, (void*)(offset + diff));
-    
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    
     CC_INCREMENT_GL_DRAWN_BATCHES_AND_VERTICES(1,4);
 }
 
@@ -166,4 +214,23 @@ void SpriteRimLight::setRimColor(float r, float g, float b)
 	_rimRed =  r;
 	_rimGreen = g;
 	_rimBlue = b;
+}
+
+GLProgram* SpriteRimLight::getGaussShader()
+{
+	static GLProgram *sProgram = nullptr;
+	if( ! sProgram )
+	{
+		sProgram = new GLProgram();
+		sProgram->initWithByteArrays(ccPositionTextureColor_vert, _fragSource);
+		sProgram->bindAttribLocation(GLProgram::ATTRIBUTE_NAME_POSITION, GLProgram::VERTEX_ATTRIB_POSITION);
+		sProgram->bindAttribLocation(GLProgram::ATTRIBUTE_NAME_COLOR, GLProgram::VERTEX_ATTRIB_COLOR);
+		sProgram->bindAttribLocation(GLProgram::ATTRIBUTE_NAME_TEX_COORD, GLProgram::VERTEX_ATTRIB_TEX_COORDS);
+		CHECK_GL_ERROR_DEBUG();
+		sProgram->link();
+		CHECK_GL_ERROR_DEBUG();
+		sProgram->updateUniforms();
+		CHECK_GL_ERROR_DEBUG();
+	}
+	return sProgram;
 }

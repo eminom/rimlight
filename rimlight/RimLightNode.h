@@ -23,15 +23,13 @@ public:
 
 private:
 	bool initWithFileName(const char *pszPathName);
+	cocos2d::Node* createLight(const char *pszPathName, float r, float g, float b);
 
 private:
-	static cocos2d::Node* createLight(const char *pathName, float r, float g, float b);
-
-private:
-	float _fambs[3];
+	float _ambs[3];
 	cocos2d::Node *_light;
 	cocos2d::Sprite *_origin;
-	std::string _spritePath;
+	std::string _spritePathName;
 };
 
 #endif

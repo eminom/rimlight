@@ -26,7 +26,7 @@ protected:
     void onDraw(const kmMat4 &transform, bool transformUpdated);
 
 private:
-	static cocos2d::GLProgram* getSharedProgram();
+	static cocos2d::GLProgram* getGaussShader();
 
 private:
     int       _blurRadius;
