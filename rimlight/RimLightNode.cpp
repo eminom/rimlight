@@ -71,8 +71,6 @@ void RimLightNode::setRimLight(float r, float g, float b)
 cocos2d::Node* RimLightNode::createLight(const char *pszPathName, float r, float g, float b)
 {
 	SpriteRimLight *rimLight = SpriteRimLight::create(pszPathName);
-	return rimLight;
-
 	Size contentSize = rimLight->getContentSize();
 	int w = int(contentSize.width + 0.5f);
 	int h = int(contentSize.height+ 0.5f);

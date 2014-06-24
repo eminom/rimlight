@@ -10,7 +10,7 @@
 
 class SpriteRimLight;
 
-typedef cocos2d::NodeRGBA RimLightNodeBase;
+typedef cocos2d::Node RimLightNodeBase;
 class RimLightNode:public RimLightNodeBase
 {
 private:
